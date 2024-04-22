@@ -1,0 +1,18 @@
+{
+  "name": "rmtp-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "node-media-server": "^2.6.6",
+    "vercel": "^34.0.0"
+  },
+  "type": "module"
+}
