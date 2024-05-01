@@ -150,7 +150,7 @@ function App() {
             />
           </div>
           <div className="todo-input">
-            
+
           </div>
           <div className="todo-input-item">
             <label>Responsible</label>
@@ -177,6 +177,7 @@ function App() {
               onChange={(e) => setNewEndDate(e.target.value)}
             />
           </div>
+  
           <div className="todo-input-item">
             <button type="button" onClick={handleAddTodo} className="primaryBtn">
               Add

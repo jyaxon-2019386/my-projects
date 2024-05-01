@@ -159,3 +159,53 @@ h1{
   font-size: 16px;
   width: fit-content;
 }
+
+.todo-input-item input[type="date"] {
+  padding: 5px;
+  border-radius: 3px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+::-webkit-calendar-picker-indicator{
+  background-color: #d3a096;
+  padding: 5px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+/* Estilos para las opciones del select */
+.todo-input-item select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+  background-color: #fff; /* Color de fondo predeterminado */
+}
+
+/* Estilos para cada opción del select */
+.todo-input-item select option[value="low"] {
+  color: green; /* Color verde para la opción "Low" */
+}
+
+.todo-input-item select option[value="medium"] {
+  color: yellow; /* Color amarillo para la opción "Medium" */
+}
+
+.todo-input-item select option[value="high"] {
+  color: red; /* Color rojo para la opción "High" */
+}
+
+
+.todo-list-item.low {
+  border-left: 4px solid green; /* Color verde para tareas con prioridad baja */
+}
+
+.todo-list-item.medium {
+  border-left: 4px solid yellow; /* Color amarillo para tareas con prioridad media */
+}
+
+.todo-list-item.high {
+  border-left: 4px solid red; /* Color rojo para tareas con prioridad alta */
+}
