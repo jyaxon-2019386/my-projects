@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import './App.css';
+import './todoList.css'
 import { AiOutlineDelete, AiOutlineEdit } from 'react-icons/ai';
 import { BsCheckLg } from 'react-icons/bs';
+import { validateRequiredFields, validateDates } from '../shared/validators/validator.js'
+import Swal from 'sweetalert2';
+import axios from 'axios';
 
-function App() {
+export const TodoList = () => {
   const [isCompleteScreen, setIsCompleteScreen] = useState(false);
   const [allTodos, setTodos] = useState([]);
   const [newTitle, setNewTitle] = useState('');
@@ -14,78 +17,125 @@ function App() {
   const [completedTodos, setCompletedTodos] = useState([]);
   const [currentEdit, setCurrentEdit] = useState('');
   const [currentEditedItem, setCurrentEditedItem] = useState('');
+  const api = axios.create({
+    baseURL: 'http://localhost:2656',
+  });
 
   const handleAddTodo = () => {
-    let newTodoItem = {
-      title: newTitle,
-      description: newDescription,
-      responsible: newResponsible,
-      startDate: newStartDate,
-      endDate: newEndDate,
+    const requiredFields = [
+      { value: newTitle },
+      { value: newDescription },
+      { value: newResponsible },
+      { value: newStartDate },
+      { value: newEndDate }
+    ];
+    if (!validateRequiredFields(requiredFields) || !validateDates(newStartDate, newEndDate)) {
+      return;
+    }
+    const newTodoItem = {
+      newTitle: newTitle,
+      newDescription: newDescription,
+      newResponsible: newResponsible,
+      newStartDate: newStartDate,
+      newEndDate: newEndDate,
     };
-
-    let updatedTodoArr = [...allTodos];
-    updatedTodoArr.push(newTodoItem);
-    setTodos(updatedTodoArr);
-    localStorage.setItem('todolist-storage', JSON.stringify(updatedTodoArr));
+    api.post('/addTask', newTodoItem)
+      .then(response => {
+        setTodos([...allTodos, response.data]);
+        Swal.fire('Agregado', 'La tarea se agregó satisfactoriamente.', 'success');
+      })
+      .catch(error => {
+        console.error('Error adding task:', error);
+        Swal.fire('Error', 'Hubo un problema para agregar la tarea.', 'error');
+      });
   };
 
-  const handleDeleteTodo = (index) => {
-    let reducedTodo = [...allTodos];
-    reducedTodo.splice(index, 1);
-
-    localStorage.setItem('todolist-storage', JSON.stringify(reducedTodo));
-    setTodos(reducedTodo);
+  const handleDeleteTodo = (todoId) => {
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: '¡No podrás deshacer esta acción!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Si, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        api.delete(`/deleteTask/${todoId}`)
+          .then(() => {
+            setTodos(allTodos.filter(task => task._id !== todoId));
+            Swal.fire('Removed!', 'Your task has been deleted.', 'success');
+          })
+          .catch(error => {
+            console.error('Error deleting task:', error);
+            Swal.fire('Error', 'There was a problem deleting the task.', 'error');
+          });
+      }
+    });
   };
 
-  const handleComplete = (index) => {
-    let now = new Date();
-    let dd = now.getDate();
-    let mm = now.getMonth() + 1;
-    let yyyy = now.getFullYear();
-    let h = now.getHours();
-    let m = now.getMinutes();
-    let s = now.getSeconds();
-    let completedOn =
-      dd + '-' + mm + '-' + yyyy + ' at ' + h + ':' + m + ':' + s;
+  const handleComplete = (task) => {
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: '¿Quieres marcar esta tarea como completada?',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, tarea completa',
+      cancelButtonText: 'Cancel'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        let now = new Date();
+        let dd = now.getDate();
+        let mm = now.getMonth() + 1;
+        let yyyy = now.getFullYear();
+        let newcompletedOn =
+          dd + '/' + mm + '/' + yyyy;
 
-    let filteredItem = {
-      ...allTodos[index],
-      completedOn: completedOn,
-    };
+        let completedTask = {
+          ...task,
+          newcompletedOn: newcompletedOn,
+        };
 
-    let updatedCompletedArr = [...completedTodos];
-    updatedCompletedArr.push(filteredItem);
-    setCompletedTodos(updatedCompletedArr);
-    handleDeleteTodo(index);
-    localStorage.setItem('completedTodos', JSON.stringify(updatedCompletedArr));
+        let updatedCompletedArr = [...completedTodos];
+        updatedCompletedArr.push(completedTask);
+        setCompletedTodos(updatedCompletedArr);
 
-    toast.success('Tarea completada!')
-  };
+        let updatedIncompleteArr = allTodos.filter((item) => item !== task);
+        setTodos(updatedIncompleteArr);
 
-  const handleDeleteCompletedTodo = (index) => {
-    let reducedTodo = [...completedTodos];
-    reducedTodo.splice(index, 1);
-
-    localStorage.setItem('completedTodos', JSON.stringify(reducedTodo));
-    setCompletedTodos(reducedTodo);
+        Swal.fire(
+          'Completed!',
+          'The task has been marked as completed.',
+          'success'
+        );
+      }
+    });
   };
 
   useEffect(() => {
-    let savedTodo = JSON.parse(localStorage.getItem('todolist-storage'));
-    let savedCompletedTodo = JSON.parse(localStorage.getItem('completedTodos'));
-    if (savedTodo) {
-      setTodos(savedTodo);
-    }
-
-    if (savedCompletedTodo) {
-      setCompletedTodos(savedCompletedTodo);
-    }
+    api.get('/getTask')
+      .then(response => {
+        console.log("Data received:", response.data);
+        setTodos(response.data);
+      })
+      .catch(error => {
+        console.error('Error retrieving tasks:', error);
+      });
   }, []);
 
-  const handleEdit = (ind, item) => {
-    setCurrentEdit(ind);
-    setCurrentEditedItem(item);
+  const handleEdit = (index, item) => {
+    setCurrentEdit(index);
+    setCurrentEditedItem({
+      _id: item._id,
+      title: item.newTitle,
+      description: item.newDescription,
+      responsible: item.newResponsible,
+      startDate: item.newStartDate,
+      endDate: item.newEndDate
+    });
   };
 
   const handleUpdateTitle = (value) => {
@@ -119,14 +169,41 @@ function App() {
   };
 
   const handleUpdateToDo = () => {
-    let newToDo = [...allTodos];
-    newToDo[currentEdit] = currentEditedItem;
-    setTodos(newToDo);
-    setCurrentEdit('');
+    if (!currentEditedItem._id) {
+      Swal.fire('Error', 'No task ID provided.', 'error');
+      return;
+    }
+
+    const updatedData = {
+      newTitle: currentEditedItem.title,
+      newDescription: currentEditedItem.description,
+      newResponsible: currentEditedItem.responsible,
+      newStartDate: currentEditedItem.startDate,
+      newEndDate: currentEditedItem.endDate
+    };
+    api.put(`/updateTask/${currentEditedItem._id}`, updatedData)
+      .then(response => {
+        if (response.data.updateTask) {
+          const updatedTodos = allTodos.map(item =>
+            item._id === currentEditedItem._id ? response.data.updateTask : item
+          );
+          setTodos(updatedTodos);
+          setCurrentEdit('');
+          setCurrentEditedItem({});
+          Swal.fire('Updated', 'The task has been updated successfully.', 'success');
+        } else {
+          throw new Error('No task found');
+        }
+      })
+      .catch(error => {
+        console.error('Error updating task:', error);
+        Swal.fire('Error', 'There was a problem updating the task.', 'error');
+      });
   };
 
+
   return (
-    <div className="App">
+    <div className="TodoList">
       <h1>StockBoard</h1>
 
       <div className="todo-wrapper">
@@ -148,9 +225,6 @@ function App() {
               onChange={(e) => setNewDescription(e.target.value)}
               placeholder="What's the task description?"
             />
-          </div>
-          <div className="todo-input">
-
           </div>
           <div className="todo-input-item">
             <label>Responsible</label>
@@ -177,7 +251,7 @@ function App() {
               onChange={(e) => setNewEndDate(e.target.value)}
             />
           </div>
-  
+
           <div className="todo-input-item">
             <button type="button" onClick={handleAddTodo} className="primaryBtn">
               Add
@@ -247,31 +321,31 @@ function App() {
                 return (
                   <div className="todo-list-item" key={index}>
                     <div className="todo-details">
-                      <h3>{item.title}</h3>
-                      <p>{item.description}</p>
+                      <h3>{item.newTitle}</h3>
+                      <p>{item.newDescription}</p>
                       <p>
-                        <small>Responsible: {item.responsible}</small>
+                        <small>Responsible: {item.newResponsible}</small>
                       </p>
                       <p>
-                        <small>Start Date: {item.startDate}</small>
+                        <small>Start Date: {item.newStartDate}</small>
                       </p>
                       <p>
-                        <small>End Date: {item.endDate}</small>
+                        <small>End Date: {item.newEndDate}</small>
                       </p>
                     </div>
                     <div className="todo-actions">
                       <AiOutlineDelete
                         className="icon"
-                        onClick={() => handleDeleteTodo(index)}
+                        onClick={() => handleDeleteTodo(item._id)}
                         title="Delete?"
                       />
                       <BsCheckLg
                         className="check-icon"
-                        onClick={() => handleComplete(index)}
+                        onClick={() => handleComplete(item)}
                         title="Complete?"
                       />
                       <AiOutlineEdit
-                        className="check-icon"
+                        className="edit-icon"
                         onClick={() => handleEdit(index, item)}
                         title="Edit?"
                       />
@@ -286,25 +360,25 @@ function App() {
               return (
                 <div className="todo-list-item" key={index}>
                   <div className="todo-details">
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
+                    <h3>{item.newTitle}</h3>
+                    <p>{item.newDescription}</p>
                     <p>
-                      <small>Responsible: {item.responsible}</small>
+                      <small>Responsible: {item.newResponsible}</small>
                     </p>
                     <p>
-                      <small>Start Date: {item.startDate}</small>
+                      <small>Start Date: {item.newStartDate}</small>
                     </p>
                     <p>
-                      <small>End Date: {item.endDate}</small>
+                      <small>End Date: {item.newEndDate}</small>
                     </p>
                     <p>
-                      <small>Completed on: {item.completedOn}</small>
+                      <small>Completed on: {item.newcompletedOn}</small>
                     </p>
                   </div>
                   <div className="todo-actions">
                     <AiOutlineDelete
                       className="icon"
-                      onClick={() => handleDeleteCompletedTodo(index)}
+                      onClick={() => handleDeleteTodo(item._id)}
                       title="Delete?"
                     />
                   </div>
@@ -316,5 +390,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
