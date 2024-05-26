@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import './todoList.css'
+import './todoList.css';
 import { AiOutlineDelete, AiOutlineEdit } from 'react-icons/ai';
 import { BsCheckLg } from 'react-icons/bs';
-import { validateRequiredFields, validateDates } from '../shared/validators/validator.js'
+import { validateRequiredFields, validateDates } from '../shared/validators/validator.js';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 
@@ -16,7 +16,7 @@ export const TodoList = () => {
   const [newEndDate, setNewEndDate] = useState('');
   const [completedTodos, setCompletedTodos] = useState([]);
   const [currentEdit, setCurrentEdit] = useState('');
-  const [currentEditedItem, setCurrentEditedItem] = useState('');
+  const [currentEditedItem, setCurrentEditedItem] = useState({});
   const api = axios.create({
     baseURL: 'http://localhost:2656',
   });
@@ -58,18 +58,18 @@ export const TodoList = () => {
       showCancelButton: true,
       confirmButtonColor: '#3085d6',
       cancelButtonColor: '#d33',
-      confirmButtonText: 'Si, eliminar',
+      confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar'
     }).then((result) => {
       if (result.isConfirmed) {
         api.delete(`/deleteTask/${todoId}`)
           .then(() => {
             setTodos(allTodos.filter(task => task._id !== todoId));
-            Swal.fire('Removed!', 'Your task has been deleted.', 'success');
+            Swal.fire('Eliminado', 'Tu tarea ha sido eliminada.', 'success');
           })
           .catch(error => {
             console.error('Error deleting task:', error);
-            Swal.fire('Error', 'There was a problem deleting the task.', 'error');
+            Swal.fire('Error', 'Hubo un problema para eliminar la tarea.', 'error');
           });
       }
     });
@@ -84,33 +84,24 @@ export const TodoList = () => {
       confirmButtonColor: '#3085d6',
       cancelButtonColor: '#d33',
       confirmButtonText: 'Sí, tarea completa',
-      cancelButtonText: 'Cancel'
+      cancelButtonText: 'Cancelar'
     }).then((result) => {
       if (result.isConfirmed) {
         let now = new Date();
         let dd = now.getDate();
         let mm = now.getMonth() + 1;
         let yyyy = now.getFullYear();
-        let newcompletedOn =
-          dd + '/' + mm + '/' + yyyy;
+        let newcompletedOn = `${dd}/${mm}/${yyyy}`;
 
         let completedTask = {
           ...task,
           newcompletedOn: newcompletedOn,
         };
 
-        let updatedCompletedArr = [...completedTodos];
-        updatedCompletedArr.push(completedTask);
-        setCompletedTodos(updatedCompletedArr);
+        setCompletedTodos([...completedTodos, completedTask]);
+        setTodos(allTodos.filter((item) => item !== task));
 
-        let updatedIncompleteArr = allTodos.filter((item) => item !== task);
-        setTodos(updatedIncompleteArr);
-
-        Swal.fire(
-          'Completed!',
-          'The task has been marked as completed.',
-          'success'
-        );
+        Swal.fire('Completado', 'La tarea ha sido marcada como completada.', 'success');
       }
     });
   };
@@ -139,36 +130,37 @@ export const TodoList = () => {
   };
 
   const handleUpdateTitle = (value) => {
-    setCurrentEditedItem((prev) => {
-      return { ...prev, title: value };
-    });
+    setCurrentEditedItem((prev) => ({ ...prev, title: value }));
   };
 
   const handleUpdateDescription = (value) => {
-    setCurrentEditedItem((prev) => {
-      return { ...prev, description: value };
-    });
+    setCurrentEditedItem((prev) => ({ ...prev, description: value }));
   };
 
   const handleUpdateResponsible = (value) => {
-    setCurrentEditedItem((prev) => {
-      return { ...prev, responsible: value };
-    });
+    setCurrentEditedItem((prev) => ({ ...prev, responsible: value }));
   };
 
   const handleUpdateStartDate = (value) => {
-    setCurrentEditedItem((prev) => {
-      return { ...prev, startDate: value };
-    });
+    setCurrentEditedItem((prev) => ({ ...prev, startDate: value }));
   };
 
   const handleUpdateEndDate = (value) => {
-    setCurrentEditedItem((prev) => {
-      return { ...prev, endDate: value };
-    });
+    setCurrentEditedItem((prev) => ({ ...prev, endDate: value }));
   };
 
   const handleUpdateToDo = () => {
+    const requiredFields = [
+      { value: currentEditedItem.title },
+      { value: currentEditedItem.description },
+      { value: currentEditedItem.responsible },
+      { value: currentEditedItem.startDate },
+      { value: currentEditedItem.endDate }
+    ];
+    if (!validateRequiredFields(requiredFields) || !validateDates(currentEditedItem.startDate, currentEditedItem.endDate)) {
+      return;
+    }
+
     if (!currentEditedItem._id) {
       Swal.fire('Error', 'No task ID provided.', 'error');
       return;
@@ -181,30 +173,41 @@ export const TodoList = () => {
       newStartDate: currentEditedItem.startDate,
       newEndDate: currentEditedItem.endDate
     };
+
     api.put(`/updateTask/${currentEditedItem._id}`, updatedData)
       .then(response => {
-        if (response.data.updateTask) {
-          const updatedTodos = allTodos.map(item =>
-            item._id === currentEditedItem._id ? response.data.updateTask : item
-          );
-          setTodos(updatedTodos);
-          setCurrentEdit('');
-          setCurrentEditedItem({});
-          Swal.fire('Updated', 'The task has been updated successfully.', 'success');
-        } else {
-          throw new Error('No task found');
-        }
+        const updatedTodos = allTodos.map(item =>
+          item._id === currentEditedItem._id ? response.data.updateTask : item
+        );
+        setTodos(updatedTodos);
+        setCurrentEdit('');
+        setCurrentEditedItem({});
+        Swal.fire('Actualizado', 'La tarea se actualizó satisfactoriamente.', 'success');
       })
       .catch(error => {
         console.error('Error updating task:', error);
-        Swal.fire('Error', 'There was a problem updating the task.', 'error');
+        Swal.fire('Error', 'Hubo un problema para actualizar la tarea.', 'error');
       });
   };
-
 
   return (
     <div className="TodoList">
       <h1>StockBoard</h1>
+
+      <div className="btn-area">
+        <button
+          className={`secondaryBtn ${isCompleteScreen === false && 'active'}`}
+          onClick={() => setIsCompleteScreen(false)}
+        >
+          Incompleted
+        </button>
+        <button
+          className={`secondaryBtn ${isCompleteScreen === true && 'active'}`}
+          onClick={() => setIsCompleteScreen(true)}
+        >
+          Completed
+        </button>
+      </div>
 
       <div className="todo-wrapper">
         <div className="todo-input">
@@ -259,65 +262,90 @@ export const TodoList = () => {
           </div>
         </div>
 
-        <div className="btn-area">
-          <button
-            className={`secondaryBtn ${isCompleteScreen === false && 'active'}`}
-            onClick={() => setIsCompleteScreen(false)}
-          >
-            Incompleted
-          </button>
-          <button
-            className={`secondaryBtn ${isCompleteScreen === true && 'active'}`}
-            onClick={() => setIsCompleteScreen(true)}
-          >
-            Completed
-          </button>
-        </div>
+        <div className='todo'>
+          <div className='todo-list'>
+            {isCompleteScreen === false &&
+              allTodos.map((item, index) => {
+                if (currentEdit === index) {
+                  return (
+                    <div className="edit-wrapper" key={index}>
+                      <input
+                        placeholder="Updated Title"
+                        onChange={(e) => handleUpdateTitle(e.target.value)}
+                        value={currentEditedItem.title}
+                      />
+                      <textarea
+                        placeholder="Updated Description"
+                        rows={4}
+                        onChange={(e) => handleUpdateDescription(e.target.value)}
+                        value={currentEditedItem.description}
+                      />
+                      <input
+                        placeholder="Updated Responsible"
+                        onChange={(e) => handleUpdateResponsible(e.target.value)}
+                        value={currentEditedItem.responsible}
+                      />
+                      <input
+                        type="date"
+                        placeholder="Updated Start Date"
+                        onChange={(e) => handleUpdateStartDate(e.target.value)}
+                        value={currentEditedItem.startDate}
+                      />
+                      <input
+                        type="date"
+                        placeholder="Updated End Date"
+                        onChange={(e) => handleUpdateEndDate(e.target.value)}
+                        value={currentEditedItem.endDate}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUpdateToDo}
+                        className="primaryBtn"
+                      >
+                        Update
+                      </button>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="todo-list-item" key={index}>
+                      <div className="todo-details">
+                        <h3>{item.newTitle}</h3>
+                        <p>{item.newDescription}</p>
+                        <p>
+                          <small>Responsible: {item.newResponsible}</small>
+                        </p>
+                        <p>
+                          <small>Start Date: {item.newStartDate}</small>
+                        </p>
+                        <p>
+                          <small>End Date: {item.newEndDate}</small>
+                        </p>
+                      </div>
+                      <div className="todo-actions">
+                        <AiOutlineDelete
+                          className="icon"
+                          onClick={() => handleDeleteTodo(item._id)}
+                          title="Delete?"
+                        />
+                        <BsCheckLg
+                          className="check-icon"
+                          onClick={() => handleComplete(item)}
+                          title="Complete?"
+                        />
+                        <AiOutlineEdit
+                          className="edit-icon"
+                          onClick={() => handleEdit(index, item)}
+                          title="Edit?"
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+              })}
 
-        <div className="todo-list">
-          {isCompleteScreen === false &&
-            allTodos.map((item, index) => {
-              if (currentEdit === index) {
-                return (
-                  <div className="edit-wrapper" key={index}>
-                    <input
-                      placeholder="Updated Title"
-                      onChange={(e) => handleUpdateTitle(e.target.value)}
-                      value={currentEditedItem.title}
-                    />
-                    <textarea
-                      placeholder="Updated Description"
-                      rows={4}
-                      onChange={(e) => handleUpdateDescription(e.target.value)}
-                      value={currentEditedItem.description}
-                    />
-                    <input
-                      placeholder="Updated Responsible"
-                      onChange={(e) => handleUpdateResponsible(e.target.value)}
-                      value={currentEditedItem.responsible}
-                    />
-                    <input
-                      type="date"
-                      placeholder="Updated Start Date"
-                      onChange={(e) => handleUpdateStartDate(e.target.value)}
-                      value={currentEditedItem.startDate}
-                    />
-                    <input
-                      type="date"
-                      placeholder="Updated End Date"
-                      onChange={(e) => handleUpdateEndDate(e.target.value)}
-                      value={currentEditedItem.endDate}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleUpdateToDo}
-                      className="primaryBtn"
-                    >
-                      Update
-                    </button>
-                  </div>
-                );
-              } else {
+            {isCompleteScreen === true &&
+              completedTodos.map((item, index) => {
                 return (
                   <div className="todo-list-item" key={index}>
                     <div className="todo-details">
@@ -332,6 +360,9 @@ export const TodoList = () => {
                       <p>
                         <small>End Date: {item.newEndDate}</small>
                       </p>
+                      <p>
+                        <small>Completed on: {item.newcompletedOn}</small>
+                      </p>
                     </div>
                     <div className="todo-actions">
                       <AiOutlineDelete
@@ -339,54 +370,13 @@ export const TodoList = () => {
                         onClick={() => handleDeleteTodo(item._id)}
                         title="Delete?"
                       />
-                      <BsCheckLg
-                        className="check-icon"
-                        onClick={() => handleComplete(item)}
-                        title="Complete?"
-                      />
-                      <AiOutlineEdit
-                        className="edit-icon"
-                        onClick={() => handleEdit(index, item)}
-                        title="Edit?"
-                      />
                     </div>
                   </div>
                 );
-              }
-            })}
-
-          {isCompleteScreen === true &&
-            completedTodos.map((item, index) => {
-              return (
-                <div className="todo-list-item" key={index}>
-                  <div className="todo-details">
-                    <h3>{item.newTitle}</h3>
-                    <p>{item.newDescription}</p>
-                    <p>
-                      <small>Responsible: {item.newResponsible}</small>
-                    </p>
-                    <p>
-                      <small>Start Date: {item.newStartDate}</small>
-                    </p>
-                    <p>
-                      <small>End Date: {item.newEndDate}</small>
-                    </p>
-                    <p>
-                      <small>Completed on: {item.newcompletedOn}</small>
-                    </p>
-                  </div>
-                  <div className="todo-actions">
-                    <AiOutlineDelete
-                      className="icon"
-                      onClick={() => handleDeleteTodo(item._id)}
-                      title="Delete?"
-                    />
-                  </div>
-                </div>
-              );
-            })}
+              })}
+          </div>
         </div>
       </div>
     </div>
   );
-}
+};
